@@ -30,22 +30,22 @@ function Shell({
 /* ---------------- level up ---------------- */
 export function LevelUpModal({
   level,
+  evolved,
   title,
   stage,
-  lang,
   t,
   onClose,
 }: {
   level: number;
+  evolved: boolean;
   title: string;
   stage: number;
-  lang: Lang;
   t: (k: string) => string;
   onClose: () => void;
 }) {
   const confetti = useMemo(
     () =>
-      Array.from({ length: 16 }, (_, i) => ({
+      Array.from({ length: evolved ? 16 : 8 }, (_, i) => ({
         id: i,
         left: 8 + Math.random() * 84,
         delay: Math.random() * 0.5,
@@ -53,7 +53,7 @@ export function LevelUpModal({
         cr: (Math.random() * 540 - 270).toFixed(0),
         color: ['#ffc247', '#ff7a2f', '#ece6d9', '#ff4d5e', '#7ade7f'][i % 5],
       })),
-    [],
+    [evolved],
   );
   return (
     <Shell onClose={onClose}>
@@ -73,15 +73,32 @@ export function LevelUpModal({
             }
           />
         ))}
-        <div className="chalk-label">{t('newLevel')}</div>
-        <div className="shine-card mt-1 inline-block rounded-lg bg-ember px-6 py-2 font-display text-4xl text-ink">
+        <div className="chalk-label">
+          {evolved ? t('evolution') : t('newLevel')}
+        </div>
+        <div
+          className={`mt-1 inline-block rounded-lg px-6 py-2 font-display text-4xl text-ink ${
+            evolved ? 'shine-card bg-gold' : 'bg-ember'
+          }`}
+        >
           {level}
         </div>
         <div className="mt-2 font-display text-xl text-gold">{title}</div>
-        <div className="mx-auto mt-4 h-40 w-40 overflow-hidden rounded-full border-[3px] border-gold/60 shadow-[0_0_50px_rgba(255,194,71,0.3)]">
-          <StageArt stage={stage} className="anim-breathe h-full w-full" />
-        </div>
-        <div className="mt-3 text-sm font-bold text-muted">{t('stageUp')}</div>
+        {evolved ? (
+          <>
+            <div className="mx-auto mt-4 h-40 w-40 overflow-hidden rounded-full border-[3px] border-gold/60 shadow-[0_0_50px_rgba(255,194,71,0.3)]">
+              <StageArt stage={stage} className="anim-breathe h-full w-full" />
+            </div>
+            <div className="mt-3 text-sm font-bold text-muted">
+              {t('stageUp')}
+            </div>
+          </>
+        ) : (
+          <div className="mt-3 flex items-center justify-center gap-2 text-sm font-bold text-muted">
+            <Icon name="arrowUp" size={15} className="text-ember" />
+            {t('titleUp')}
+          </div>
+        )}
         <button
           onClick={onClose}
           className="mt-4 w-full rounded-md bg-ember py-2.5 font-display text-sm text-ink transition-all hover:bg-gold active:scale-[0.98]"

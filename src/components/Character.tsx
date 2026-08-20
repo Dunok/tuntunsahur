@@ -1,7 +1,16 @@
 import { useRef, useState } from 'react';
 import type { Lang } from '../game/types';
-import { Icon } from './Icons';
+import { Icon, type IconName } from './Icons';
 import { StageArt } from './StageArt';
+
+/** Aura glow per gym tier (1..5) — changes as the hall upgrades. */
+const TIER_GLOW: Record<number, string> = {
+  1: '0 0 45px rgba(91,107,132,0.35), 0 0 90px rgba(91,107,132,0.14)',
+  2: '0 0 45px rgba(255,122,47,0.4), 0 0 100px rgba(255,122,47,0.16)',
+  3: '0 0 50px rgba(255,194,71,0.45), 0 0 110px rgba(255,122,47,0.18)',
+  4: '0 0 55px rgba(255,77,94,0.5), 0 0 120px rgba(255,77,94,0.2)',
+  5: '0 0 60px rgba(255,214,130,0.6), 0 0 150px rgba(255,194,71,0.3)',
+};
 
 export interface SmashResult {
   amount: string;
@@ -37,6 +46,9 @@ interface Props {
   perClickLabel: string;
   combo: number;
   frenzy: boolean;
+  tier: number;
+  equipped: { icon: string; lvl: number }[];
+  lvlLabel: string;
   onSmash: () => SmashResult;
 }
 
@@ -53,8 +65,13 @@ export function Character({
   perClickLabel,
   combo,
   frenzy,
+  tier,
+  equipped,
+  lvlLabel,
   onSmash,
 }: Props) {
+  /* Sahur visually grows with every level: art scales up inside the ring. */
+  const bodyScale = 0.86 + level * 0.03;
   const [floats, setFloats] = useState<FloatItem[]>([]);
   const [parts, setParts] = useState<Particle[]>([]);
   const arenaRef = useRef<HTMLDivElement>(null);
@@ -152,6 +169,15 @@ export function Character({
           />
         </svg>
 
+        {/* tier aura (behind the circle) */}
+        <div
+          className="pointer-events-none absolute -inset-2 rounded-full"
+          style={{
+            boxShadow: TIER_GLOW[tier] ?? TIER_GLOW[1],
+            transition: 'box-shadow 1.2s ease',
+          }}
+        />
+
         {/* character circle */}
         <div
           ref={pumpRef}
@@ -159,8 +185,16 @@ export function Character({
             frenzy ? 'border-gold anim-ring-pulse' : 'border-line'
           }`}
         >
-          <div className="anim-breathe absolute inset-0">
-            <StageArt stage={stage} className="h-full w-full" />
+          <div
+            className="absolute inset-0"
+            style={{
+              transform: `scale(${bodyScale})`,
+              transition: 'transform 0.8s cubic-bezier(0.2, 0.8, 0.3, 1)',
+            }}
+          >
+            <div className="anim-breathe absolute inset-0">
+              <StageArt stage={stage} className="h-full w-full" />
+            </div>
           </div>
           <div
             className="pointer-events-none absolute inset-0"
@@ -247,6 +281,21 @@ export function Character({
           <span className="text-[11px] font-bold text-ember/80">{perClickLabel}</span>
         </div>
       </div>
+
+      {/* equipped gear — grows as the player shops */}
+      {equipped.length > 0 && (
+        <div className="anim-fade flex flex-wrap items-center justify-center gap-1.5">
+          {equipped.map((e) => (
+            <span
+              key={e.icon}
+              className="flex items-center gap-1 rounded-full border border-line bg-panel/90 px-2 py-1 text-[11px] font-extrabold text-muted shadow"
+            >
+              <Icon name={e.icon as IconName} size={13} className="text-gold" />
+              {lvlLabel} {e.lvl}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

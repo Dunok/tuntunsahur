@@ -16,6 +16,7 @@ import { Shop, type ShopTab } from './components/Shop';
 import { audio } from './game/audio';
 import {
   AD_BOOST_MS,
+  ALL_UPGRADES,
   COMBO_MAX,
   COMBO_WINDOW_MS,
   CRIT_MULT,
@@ -44,6 +45,7 @@ export default function App() {
   const goldenActiveRef = useRef(false);
   const nextGoldenRef = useRef(Date.now() + 40000);
   const pendingOfflineRef = useRef(0);
+  const stageRef = useRef(stageOf(stateRef.current.level).img);
   const adSimCbRef = useRef<(() => void) | null>(null);
   const langRef = useRef<Lang>('ru');
 
@@ -52,7 +54,10 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [started, setStarted] = useState(false);
   const [tab, setTab] = useState<ShopTab>('gear');
-  const [levelUp, setLevelUp] = useState<number | null>(null);
+  const [levelUp, setLevelUp] = useState<{
+    level: number;
+    evolved: boolean;
+  } | null>(null);
   const [offline, setOffline] = useState<number | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [adSim, setAdSim] = useState(false);
@@ -89,7 +94,10 @@ export default function App() {
 
   const onLevelReached = useCallback(
     (lvl: number) => {
-      setLevelUp(lvl);
+      const img = stageOf(lvl).img;
+      const evolved = img !== stageRef.current;
+      stageRef.current = img;
+      setLevelUp({ level: lvl, evolved });
       audio.levelUp();
       persist(true);
     },
@@ -130,13 +138,14 @@ export default function App() {
       const cloudState = cloud ? G.parseSave(cloud) : null;
       if (cloudState && cloudState.totalEarned > stateRef.current.totalEarned) {
         stateRef.current = cloudState;
+        stageRef.current = stageOf(cloudState.level).img;
         setMutedState(cloudState.muted);
       }
       // offline earnings
       const s = stateRef.current;
       const elapsed = (Date.now() - s.lastSeen) / 1000;
       const aps = G.effAuto(s, [], Date.now());
-      if (elapsed > 90 && aps > 0) {
+      if (elapsed > 300 && aps > 0) {
         pendingOfflineRef.current = Math.floor(
           aps * Math.min(elapsed, OFFLINE_CAP_SEC) * OFFLINE_RATE,
         );
@@ -218,24 +227,46 @@ export default function App() {
     return () => cancelAnimationFrame(raf);
   }, [started, checkAch, onLevelReached, persist]);
 
-  /* ---------------- lifecycle saves ---------------- */
+  /* ---------------- lifecycle saves + background catch-up ---------------- */
   useEffect(() => {
-    const onHide = () => {
-      if (document.visibilityState === 'hidden') persist(true);
+    let hiddenAt = 0;
+    const onVis = () => {
+      if (document.visibilityState === 'hidden') {
+        hiddenAt = Date.now();
+        persist(true);
+      } else if (started && hiddenAt > 0) {
+        // rAF is paused in background — silently credit auto income (capped)
+        const gap = Math.min((Date.now() - hiddenAt) / 1000, 7200);
+        hiddenAt = 0;
+        if (gap > 5) {
+          const s = stateRef.current;
+          const aps = G.effAuto(s, boostsRef.current, Date.now());
+          if (aps > 0) {
+            G.earn(s, aps * gap);
+            const nl = G.checkLevel(s);
+            if (nl > 0) onLevelReached(nl);
+            persist(true);
+            setTick((x) => x + 1);
+          }
+        }
+      }
     };
     const onUnload = () => persist(true);
-    document.addEventListener('visibilitychange', onHide);
+    document.addEventListener('visibilitychange', onVis);
     window.addEventListener('beforeunload', onUnload);
     return () => {
-      document.removeEventListener('visibilitychange', onHide);
+      document.removeEventListener('visibilitychange', onVis);
       window.removeEventListener('beforeunload', onUnload);
     };
-  }, [persist]);
+  }, [persist, started, onLevelReached]);
 
   /* ---------------- level-up modal auto close ---------------- */
   useEffect(() => {
     if (levelUp === null) return;
-    const tm = window.setTimeout(() => setLevelUp(null), 3200);
+    const tm = window.setTimeout(
+      () => setLevelUp(null),
+      levelUp.evolved ? 3400 : 2100,
+    );
     return () => window.clearTimeout(tm);
   }, [levelUp]);
 
@@ -404,6 +435,7 @@ export default function App() {
     comboUntilRef.current = 0;
     goldenActiveRef.current = false;
     pendingOfflineRef.current = 0;
+    stageRef.current = 1;
     nextGoldenRef.current = Date.now() + 30000 + Math.random() * 15000;
     setGolden(null);
     setFlash(null);
@@ -430,6 +462,10 @@ export default function App() {
   const toNextText = next
     ? `${fmt(Math.max(0, Math.ceil(next.coins - s.totalEarned)), lang)} ${t('toNext')} ${next.level}`
     : t('maxLevel');
+  const equipped = ALL_UPGRADES.filter((u) => (s.levels[u.id] ?? 0) > 0)
+    .sort((a, b) => (s.levels[b.id] ?? 0) - (s.levels[a.id] ?? 0))
+    .slice(0, 3)
+    .map((u) => ({ icon: u.icon, lvl: s.levels[u.id] ?? 0 }));
 
   return (
     <div
@@ -521,6 +557,9 @@ export default function App() {
               perClickLabel={t('perClick')}
               combo={comboRef.current}
               frenzy={frenzy}
+              tier={stage.img}
+              equipped={equipped}
+              lvlLabel={t('lvl')}
               onSmash={onSmash}
             />
           </div>
@@ -551,10 +590,10 @@ export default function App() {
 
       {levelUp !== null && (
         <LevelUpModal
-          level={levelUp}
-          title={stageOf(levelUp).title[lang]}
-          stage={stageOf(levelUp).img}
-          lang={lang}
+          level={levelUp.level}
+          evolved={levelUp.evolved}
+          title={stageOf(levelUp.level).title[lang]}
+          stage={stageOf(levelUp.level).img}
           t={t}
           onClose={() => setLevelUp(null)}
         />

@@ -136,6 +136,7 @@ export function showRewarded(h: RewardedHandlers): boolean {
     });
     return true;
   } catch {
+    gameplayStart();
     return false;
   }
 }

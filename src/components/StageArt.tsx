@@ -14,16 +14,17 @@ export function StageArt({
   stage: number;
   className?: string;
 }) {
-  const [failed, setFailed] = useState(false);
+  // remember which stage failed to load, so a new stage retries its own image
+  const [failedStage, setFailedStage] = useState(0);
   return (
     <div className={`relative overflow-hidden bg-ink2 ${className ?? ''}`}>
       <SahurSVG stage={stage} className="absolute inset-0 h-full w-full" />
-      {!failed && (
+      {failedStage !== stage && (
         <img
           src={stageImage(stage)}
           alt=""
           draggable={false}
-          onError={() => setFailed(true)}
+          onError={() => setFailedStage(stage)}
           className="absolute inset-0 h-full w-full object-cover"
         />
       )}
