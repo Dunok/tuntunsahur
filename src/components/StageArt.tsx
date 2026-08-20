@@ -1,11 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { stageImage } from '../game/images';
 import { SahurSVG } from './SahurSVG';
 
 /**
- * Character artwork: inline SVG (always works) with the AI-rendered
- * image layered on top. If the remote image fails to load, the SVG
- * remains — the game never shows a broken/empty portrait.
+ * Character artwork layers:
+ *  1. inline SVG (always available, shows instantly);
+ *  2. local file `public/chars/stageN.png` (if bundled — recommended
+ *     for Yandex Games: drop the 5 PNGs into public/chars/);
+ *  3. remote AI-rendered image.
+ * If every raster fails, the SVG stays — the game never shows a
+ * broken portrait.
  */
 export function StageArt({
   stage,
@@ -14,17 +18,20 @@ export function StageArt({
   stage: number;
   className?: string;
 }) {
-  // remember which stage failed to load, so a new stage retries its own image
-  const [failedStage, setFailedStage] = useState(0);
+  const local = `${import.meta.env.BASE_URL}chars/stage${stage}.png`;
+  const remote = stageImage(stage);
+  const [idx, setIdx] = useState(0);
+  useEffect(() => setIdx(0), [stage]);
+  const srcs = [local, remote];
   return (
     <div className={`relative overflow-hidden bg-ink2 ${className ?? ''}`}>
       <SahurSVG stage={stage} className="absolute inset-0 h-full w-full" />
-      {failedStage !== stage && (
+      {idx < srcs.length && (
         <img
-          src={stageImage(stage)}
+          src={srcs[idx]}
           alt=""
           draggable={false}
-          onError={() => setFailedStage(stage)}
+          onError={() => setIdx((i) => i + 1)}
           className="absolute inset-0 h-full w-full object-cover"
         />
       )}

@@ -419,6 +419,8 @@ export interface Toast {
   id: number;
   title: string;
   icon: IconName;
+  /** second line; defaults to the achievement bonus text */
+  sub?: string;
 }
 
 export function Toasts({
@@ -443,8 +445,10 @@ export function Toasts({
             <div className="text-[13px] font-extrabold text-chalk">
               {toast.title}
             </div>
-            <div className="text-[11px] font-bold text-lime">
-              {t('achBonusLine')}
+            <div
+              className={`text-[11px] font-bold ${toast.sub ? 'text-ember' : 'text-lime'}`}
+            >
+              {toast.sub ?? t('achBonusLine')}
             </div>
           </div>
         </div>

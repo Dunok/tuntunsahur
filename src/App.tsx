@@ -13,10 +13,13 @@ import {
   type Toast,
 } from './components/Modals';
 import { Shop, type ShopTab } from './components/Shop';
+import { Trainers, type TrainerInfo } from './components/Trainers';
+import type { IconName } from './components/Icons';
 import { audio } from './game/audio';
 import {
   AD_BOOST_MS,
   ALL_UPGRADES,
+  AUTO_UPGRADES,
   COMBO_MAX,
   COMBO_WINDOW_MS,
   CRIT_MULT,
@@ -26,6 +29,7 @@ import {
   OFFLINE_CAP_SEC,
   OFFLINE_RATE,
   stageOf,
+  UPGRADE_NAMES,
 } from './game/config';
 import { fmt } from './game/format';
 import { preloadStages } from './game/images';
@@ -104,24 +108,26 @@ export default function App() {
     [persist],
   );
 
+  const pushToast = useCallback(
+    (title: string, icon: IconName, sub?: string) => {
+      const item: Toast = { id: toastUid++, title, icon, sub };
+      setToasts((prev) => [...prev.slice(-2), item]);
+      window.setTimeout(
+        () => setToasts((prev) => prev.filter((i) => i.id !== item.id)),
+        3600,
+      );
+    },
+    [],
+  );
+
   const checkAch = useCallback(() => {
     const fresh = G.checkAchievements(stateRef.current);
     if (fresh.length > 0) {
       audio.achievement();
-      const items: Toast[] = fresh.map((a) => ({
-        id: toastUid++,
-        title: a.name[langRef.current],
-        icon: 'medal',
-      }));
-      setToasts((prev) => [...prev.slice(-2), ...items]);
-      const ids = new Set(items.map((i) => i.id));
-      window.setTimeout(
-        () => setToasts((prev) => prev.filter((i) => !ids.has(i.id))),
-        3600,
-      );
+      fresh.forEach((a) => pushToast(a.name[langRef.current], 'medal'));
       persist();
     }
-  }, [persist]);
+  }, [persist, pushToast]);
 
   /* ---------------- boot: SDK + saves + assets ---------------- */
   useEffect(() => {
@@ -305,9 +311,20 @@ export default function App() {
 
   const onBuy = useCallback(
     (id: string): boolean => {
-      const ok = G.buyUpgrade(stateRef.current, id);
+      const s = stateRef.current;
+      const prev = s.levels[id] ?? 0;
+      const ok = G.buyUpgrade(s, id);
       if (ok) {
         audio.buy();
+        const def = G.defById(id);
+        if (def && def.kind === 'auto' && prev === 0) {
+          const name = UPGRADE_NAMES[id]?.[langRef.current] ?? id;
+          pushToast(
+            name,
+            def.icon as IconName,
+            I18N[langRef.current].trainerJoined,
+          );
+        }
         persist();
         setTick((x) => x + 1);
       } else {
@@ -315,7 +332,7 @@ export default function App() {
       }
       return ok;
     },
-    [persist],
+    [persist, pushToast],
   );
 
   const grantAdBoost = useCallback(() => {
@@ -466,6 +483,12 @@ export default function App() {
     .sort((a, b) => (s.levels[b.id] ?? 0) - (s.levels[a.id] ?? 0))
     .slice(0, 3)
     .map((u) => ({ icon: u.icon, lvl: s.levels[u.id] ?? 0 }));
+  // hired coaches appear next to Sahur (cheapest tier → nearest slot)
+  const visibleTrainers: TrainerInfo[] = AUTO_UPGRADES.filter(
+    (u) => (s.levels[u.id] ?? 0) > 0,
+  )
+    .slice(0, 5)
+    .map((u) => ({ id: u.id, lvl: s.levels[u.id] ?? 0 }));
 
   return (
     <div
@@ -489,6 +512,11 @@ export default function App() {
         {/* ------------ scene ------------ */}
         <main className="relative min-h-0 flex-1 overflow-hidden">
           <GymScene tier={stage.img} />
+
+          {/* hired coaches standing on the gym floor */}
+          {started && (
+            <Trainers trainers={visibleTrainers} lvlLabel={t('lvl')} />
+          )}
 
           {/* frenzy tint */}
           {frenzy && (
