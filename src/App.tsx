@@ -75,9 +75,15 @@ export default function App() {
     [lang],
   );
 
+  const lastLocalSaveRef = useRef(0);
   const persist = useCallback((force = false) => {
     const s = stateRef.current;
-    G.saveLocal(s);
+    const nowMs = Date.now();
+    // throttle localStorage writes (hot path: every click)
+    if (force || nowMs - lastLocalSaveRef.current > 2000) {
+      lastLocalSaveRef.current = nowMs;
+      G.saveLocal(s);
+    }
     YS.saveCloud(G.saveObject(s), force);
   }, []);
 
@@ -136,11 +142,11 @@ export default function App() {
         );
       }
       setCloudOn(YS.hasCloud());
-      // preload evolution art
-      await preloadStages();
       if (cancelled) return;
       YS.loadingReady();
       setLoading(false);
+      // AI artwork loads in the background; SVG fallback shows instantly
+      void preloadStages();
     })();
     return () => {
       cancelled = true;
@@ -395,6 +401,13 @@ export default function App() {
     G.clearLocal();
     boostsRef.current = [];
     comboRef.current = 0;
+    comboUntilRef.current = 0;
+    goldenActiveRef.current = false;
+    pendingOfflineRef.current = 0;
+    nextGoldenRef.current = Date.now() + 30000 + Math.random() * 15000;
+    setGolden(null);
+    setFlash(null);
+    setTab('gear');
     persist(true);
     setShowSettings(false);
     setLevelUp(null);
@@ -406,7 +419,10 @@ export default function App() {
   const s = stateRef.current;
   const now = Date.now();
   const stage = stageOf(s.level);
-  const frenzy = boostsRef.current.some((b) => b.id === 'frenzy' && b.until > now);
+  const frenzyBoost = boostsRef.current.find(
+    (b) => b.id === 'frenzy' && b.until > now,
+  );
+  const frenzy = !!frenzyBoost;
   const perSec = G.effAuto(s, boostsRef.current, now);
   const perClick = G.effClick(s, boostsRef.current, now, 0);
   const progress = G.progressToNext(s);
@@ -452,11 +468,9 @@ export default function App() {
                   {t('frenzy')} ×3
                 </span>
                 <span className="text-xs font-bold text-gold/80">
-                  {Math.ceil(
-                    (boostsRef.current.find((b) => b.id === 'frenzy')!.until -
-                      now) /
-                      1000,
-                  )}
+                  {frenzyBoost
+                    ? Math.max(0, Math.ceil((frenzyBoost.until - now) / 1000))
+                    : 0}
                   s
                 </span>
               </div>

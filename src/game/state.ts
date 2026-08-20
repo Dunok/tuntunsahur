@@ -180,14 +180,30 @@ export function parseSave(raw: unknown): GameState | null {
       typeof raw === 'string' ? JSON.parse(raw) : raw
     ) as Partial<GameState> & { coins?: number };
     if (!d || typeof d !== 'object' || typeof d.coins !== 'number') return null;
+    const num = (v: unknown, fb = 0) =>
+      typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : fb;
     const base = newState();
     return {
       ...base,
       ...d,
       v: 3,
-      levels: typeof d.levels === 'object' && d.levels ? d.levels : {},
-      achievements: Array.isArray(d.achievements) ? d.achievements : [],
-      lastSeen: typeof d.lastSeen === 'number' ? d.lastSeen : Date.now(),
+      coins: num(d.coins),
+      totalEarned: num(d.totalEarned),
+      totalClicks: num(d.totalClicks),
+      totalCrits: num(d.totalCrits),
+      totalGoldens: num(d.totalGoldens),
+      totalBuys: num(d.totalBuys),
+      level: Math.min(20, Math.max(1, Math.floor(num(d.level, 1)) || 1)),
+      levels:
+        d.levels && typeof d.levels === 'object' && !Array.isArray(d.levels)
+          ? (d.levels as Record<string, number>)
+          : {},
+      achievements: Array.isArray(d.achievements)
+        ? d.achievements.filter((a) => typeof a === 'string')
+        : [],
+      muted: !!d.muted,
+      lang: d.lang === 'ru' || d.lang === 'en' ? d.lang : null,
+      lastSeen: num(d.lastSeen, Date.now()) || Date.now(),
     } as GameState;
   } catch {
     return null;

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { fmt } from '../game/format';
-import { stageImage } from '../game/images';
 import type { Lang } from '../game/types';
 import { Icon, type IconName } from './Icons';
+import { StageArt } from './StageArt';
 
 function Shell({
   children,
@@ -79,11 +79,7 @@ export function LevelUpModal({
         </div>
         <div className="mt-2 font-display text-xl text-gold">{title}</div>
         <div className="mx-auto mt-4 h-40 w-40 overflow-hidden rounded-full border-[3px] border-gold/60 shadow-[0_0_50px_rgba(255,194,71,0.3)]">
-          <img
-            src={stageImage(stage)}
-            alt="evolved"
-            className="anim-breathe h-full w-full object-cover"
-          />
+          <StageArt stage={stage} className="anim-breathe h-full w-full" />
         </div>
         <div className="mt-3 text-sm font-bold text-muted">{t('stageUp')}</div>
         <button
@@ -320,11 +316,7 @@ export function IntroOverlay({
         </h1>
 
         <div className="anim-bob relative mt-6 h-40 w-40 overflow-hidden rounded-full border-[3px] border-line shadow-[0_20px_60px_rgba(0,0,0,0.6)] sm:h-48 sm:w-48">
-          <img
-            src={stageImage(1)}
-            alt="Sahur"
-            className="h-full w-full object-cover"
-          />
+          <StageArt stage={1} className="h-full w-full" />
           <div
             className="pointer-events-none absolute inset-0"
             style={{

@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
-import { stageImage } from '../game/images';
 import type { Lang } from '../game/types';
 import { Icon } from './Icons';
+import { StageArt } from './StageArt';
 
 export interface SmashResult {
   amount: string;
@@ -128,12 +128,12 @@ export function Character({
   const comboMult = (1 + 0.01 * combo).toFixed(2).replace('.', lang === 'ru' ? ',' : '.');
 
   return (
-    <div className="relative flex flex-col items-center gap-3 select-none">
+    <div className="relative flex flex-col items-center gap-1.5 select-none sm:gap-3">
       {/* arena */}
       <div
         ref={arenaRef}
         onPointerDown={handleDown}
-        className="relative aspect-square w-[min(58vw,250px)] cursor-pointer touch-none sm:w-[min(50vw,320px)] lg:w-[340px]"
+        className="relative aspect-square w-[min(46vw,205px)] cursor-pointer touch-none sm:w-[min(50vw,320px)] lg:w-[340px]"
       >
         {/* progress ring */}
         <svg viewBox="0 0 100 100" className="absolute -inset-2 h-[calc(100%+16px)] w-[calc(100%+16px)] -rotate-90">
@@ -160,12 +160,7 @@ export function Character({
           }`}
         >
           <div className="anim-breathe absolute inset-0">
-            <img
-              src={stageImage(stage)}
-              alt="Sahur"
-              draggable={false}
-              className="h-full w-full object-cover"
-            />
+            <StageArt stage={stage} className="h-full w-full" />
           </div>
           <div
             className="pointer-events-none absolute inset-0"

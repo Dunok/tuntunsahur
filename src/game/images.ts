@@ -11,15 +11,23 @@ export function stageImage(stage: number): string {
   return STAGE_URLS[stage] ?? STAGE_URLS[1];
 }
 
-export function preloadStages(): Promise<void[]> {
+export function preloadStages(timeoutMs = 8000): Promise<void[]> {
   return Promise.all(
     Object.values(STAGE_URLS).map(
       (url) =>
         new Promise<void>((res) => {
+          let done = false;
+          const finish = () => {
+            if (!done) {
+              done = true;
+              res();
+            }
+          };
           const img = new Image();
-          img.onload = () => res();
-          img.onerror = () => res();
+          img.onload = finish;
+          img.onerror = finish;
           img.src = url;
+          window.setTimeout(finish, timeoutMs);
         }),
     ),
   );
